@@ -41,61 +41,60 @@ dados <- read_csv(
 )
 
 dados <- dados %>% mutate(across(where(is.numeric), ~replace_na(., 0)))
-
 dados$Outstanding_Debt <- as.numeric(gsub(",", "", dados$Outstanding_Debt))
 dados$Credit_History_Age_Num <- as.numeric(str_extract(dados$Credit_History_Age, "\\d+"))
 
-unique(dados$Outstanding_Debt)
+dados <- dados %>%
+  mutate(Credit_Score = fct_na_value_to_level(Credit_Score, level = "Desconhecido"))
 
-dados_clean <- dados[!is.na(dados$Outstanding_Debt), ]
-dados$Outstanding_Debt[is.na(dados$Outstanding_Debt)] <- mean(dados$Outstanding_Debt, na.rm = TRUE)
-dados$Outstanding_Debt[is.na(dados$Outstanding_Debt)] <- median(dados$Outstanding_Debt, na.rm = TRUE)
+dados_agrupados <- dados %>%
+  group_by(Customer_ID) %>%
+  summarise(
+    Age = mean(Age, na.rm = TRUE),
+    Annual_Income = mean(Annual_Income, na.rm = TRUE),
+    Monthly_Inhand_Salary = mean(Monthly_Inhand_Salary, na.rm = TRUE),
+    Num_Bank_Accounts = mean(Num_Bank_Accounts, na.rm = TRUE),
+    Num_Credit_Card = mean(Num_Credit_Card, na.rm = TRUE),
+    Interest_Rate = mean(Interest_Rate, na.rm = TRUE),
+    Outstanding_Debt = mean(Outstanding_Debt, na.rm = TRUE),
+    Credit_Utilization_Ratio = mean(Credit_Utilization_Ratio, na.rm = TRUE),
+    Credit_History_Age_Num = mean(Credit_History_Age_Num, na.rm = TRUE),
+    Total_EMI_per_month = mean(Total_EMI_per_month, na.rm = TRUE),
+    Monthly_Balance = mean(Monthly_Balance, na.rm = TRUE),
+    Credit_Score = first(Credit_Score),
+    Payment_Behaviour = first(Payment_Behaviour)
+  )
 
-plot_ly(dados, x = ~Age, type = "histogram", nbinsx = 30, name = "Idade") %>%
-  layout(title = "Distribuição da Idade", xaxis = list(title = "Idade"), yaxis = list(title = "Frequência"))
+
+plot_ly(dados, x = ~Monthly_Inhand_Salary, type = "histogram", nbinsx = 30, name = "Salário Mensal") %>%
+  layout(title = "Distribuição do Salário Mensal", xaxis = list(title = "Salário"), yaxis = list(title = "Frequência"))
 
 ggplot(dados, aes(x = Monthly_Inhand_Salary)) +
   geom_density(fill = "#33a02c", alpha = 0.6) +
   labs(title = "Distribuição do Salário Mensal", x = "Salário", y = "Densidade") +
   theme_minimal(base_size = 16)
 
-plot_ly(dados, x = ~factor(Num_Bank_Accounts), type = "histogram", name = "Contas Bancárias") %>%
-  layout(
-    title = "Distribuição do Número de Contas Bancárias",
-    xaxis = list(title = "Nº de Contas Bancárias (discretas)", type = "category"),
-    yaxis = list(title = "Frequência", range = c(0, 1000))
-  )
+plot_ly(dados_agrupados, x = ~Credit_Score, y = ~Age, type = "box", name = "Idade por Score") %>%
+  layout(title = "Idade por Score de Crédito", xaxis = list(title = "Score de Crédito"), yaxis = list(title = "Idade"))
 
-plot_ly(dados, x = ~factor(Num_Credit_Card), type = "histogram", name = "Cartões de Crédito") %>%
-  layout(
-    title = "Distribuição do Número de Cartões de Crédito",
-    xaxis = list(title = "Nº de Cartões de Crédito (discretos)", type = "category"),
-    yaxis = list(title = "Frequência", range = c(0, 1000))
-  )
+ggplot(dados_agrupados, aes(x = Credit_Score, y = Age, fill = Credit_Score)) +
+  geom_boxplot() +
+  labs(title = "Idade por Score de Crédito (Agrupado por Customer_ID)", x = "Score de Crédito", y = "Idade") +
+  theme_minimal(base_size = 16) +
+  theme(legend.position = "none")
 
-plot_ly(dados, x = ~Credit_Score, type = "histogram", name = "Score de Crédito") %>%
-  layout(title = "Distribuição do Score de Crédito", xaxis = list(title = "Score"), yaxis = list(title = "Frequência"))
+plot_ly(dados_agrupados, x = ~Outstanding_Debt, type = "histogram", nbinsx = 30, name = "Dívida Pendente") %>%
+  layout(title = "Distribuição da Dívida Pendente", xaxis = list(title = "Dívida Pendente"), yaxis = list(title = "Frequência"))
 
-plot_ly(dados, x = ~Annual_Income, type = "histogram", nbinsx = 20, name = "Renda Anual") %>%
-  layout(
-    title = "Distribuição da Renda Anual",
-    xaxis = list(title = "Renda Anual (em unidades monetárias)", range = c(0, max(dados$Annual_Income, na.rm = TRUE))),
-    yaxis = list(title = "Frequência", range = c(0, 1500))
-  )
-
-plot_ly(dados, x = ~Outstanding_Debt, type = "histogram", nbinsx = 30, name = "Dívida Pendente") %>%
-  layout(title = "Distribuição da Dívida Pendente", xaxis = list(title = "Valor da Dívida"), yaxis = list(title = "Frequência"))
-
-plot_ly(dados, x = ~Payment_Behaviour, type = "histogram", name = "Comportamento de Pagamento") %>%
-  layout(title = "Comportamento de Pagamento", xaxis = list(title = "Comportamento"), yaxis = list(title = "Frequência"))
-
-ggplot(dados, aes(x = Credit_Utilization_Ratio)) +
-  geom_density(fill = "#fb9a99") +
-  labs(title = "Razão de Utilização de Crédito", x = "Razão", y = "Densidade") +
+ggplot(dados_agrupados, aes(x = Outstanding_Debt)) +
+  geom_histogram(binwidth = 500, fill = "#fb9a99", color = "white") +
+  labs(title = "Distribuição da Dívida Pendente", x = "Dívida Pendente", y = "Frequência") +
   theme_minimal(base_size = 16)
 
-dados$Credit_History_Age_Num <- as.numeric(str_extract(dados$Credit_History_Age, "\\d+"))
-ggplot(dados, aes(x = Credit_History_Age_Num)) +
-  geom_histogram(binwidth = 1, fill = "#a6cee3", color = "white") +
-  labs(title = "Idade do Histórico de Crédito", x = "Meses", y = "Frequência") +
+plot_ly(dados_agrupados, x = ~Credit_Utilization_Ratio, type = "box", name = "Utilização de Crédito") %>%
+  layout(title = "Razão de Utilização de Crédito", xaxis = list(title = "Razão"), yaxis = list(title = "Frequência"))
+
+ggplot(dados_agrupados, aes(x = Credit_Utilization_Ratio)) +
+  geom_density(fill = "#a6cee3", alpha = 0.6) +
+  labs(title = "Razão de Utilização de Crédito", x = "Razão (%)", y = "Densidade") +
   theme_minimal(base_size = 16)
